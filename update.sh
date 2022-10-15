@@ -2,16 +2,10 @@
 
 echo Checking latest versions of get_iplayer...
 
-# Get cgi script version
-if [[ -f /root/get_iplayer.cgi ]]
-then
-  VERSIONcgi=$(cat /root/get_iplayer.cgi | grep VERSION | grep -oP 'VERSION\ =\ \K.*?(?=;)' | head -1)
-fi
-
 # Get main script version
-if [[ -f /root/get_iplayer ]]
+if [[ -f /getiplayer/get_iplayer ]]
 then
-  VERSION=$(cat /root/get_iplayer | grep version | grep -oP 'version\ =\ \K.*?(?=;)' | head -1)
+  VERSION=$(cat /getiplayer/get_iplayer | grep version | grep -oP 'version\ =\ \K.*?(?=;)' | head -1)
 fi
 
 # Get current github release version
@@ -26,12 +20,8 @@ fi
 
 echo get_iplayer installed        $VERSION
 echo get_iplayer release          $RELEASE
-echo get_iplayer webui installed  $VERSIONcgi
-echo get_iplayer webui release    $RELEASEcgi
 
-if [[ "$VERSION" != "$VERSIONcgi" ]] || \
-   [[ "$VERSION" == "" ]] || \
-   [[ "$VERSIONcgi" == "" ]] || \
+if [[ "$VERSION" == "" ]] || \
    [[ "$VERSION" != "$RELEASE" ]] || \
    [[ "$FORCEDOWNLOAD" != "" ]]
 then
@@ -39,27 +29,14 @@ then
   if [[ "$RELEASE" == "" ]]
   then
     # No release returned from github, download manually
-    wget -q https://raw.githubusercontent.com/get-iplayer/get_iplayer/master/get_iplayer.cgi -O /root/get_iplayer.cgi
-    wget -q https://raw.githubusercontent.com/get-iplayer/get_iplayer/master/get_iplayer -O /root/get_iplayer
-    chmod 755 /root/get_iplayer
+    wget -q https://raw.githubusercontent.com/get-iplayer/get_iplayer/master/get_iplayer.cgi -O /getiplayer/get_iplayer.cgi
+    wget -q https://raw.githubusercontent.com/get-iplayer/get_iplayer/master/get_iplayer -O /getiplayer/get_iplayer
+    chmod 755 /getiplayer/get_iplayer
   else
     # Download and unpack release
-    wget -q https://github.com/get-iplayer/get_iplayer/archive/v$RELEASE.tar.gz -O /root/latest.tar.gz
-    cd /root
-    tar -xzf /root/latest.tar.gz get_iplayer-$RELEASE --directory /root/ --strip-components=1
-    rm /root/latest.tar.gz
-  fi
-  
-  #kill current get_iplayer gracefully (is pvr/cache refresh running?)
-  if [[ -f /root/.get_iplayer/pvr_lock ]] #|| [[ -f /root/.get_iplayer/??refreshcache_lock ]]
-  then
-    echo Warning - updated scripts, but get_iplayer processes are running so unable to restart get_iplayer
-  else
-    # This will kill the running perl processes, and the start script will just re-load it
-    if [[ "$1" != "start" ]]
-    then
-      echo Killing get_iplayer process...
-      killall -9 perl
-    fi
+    wget -q https://github.com/get-iplayer/get_iplayer/archive/v$RELEASE.tar.gz -O /getiplayer/latest.tar.gz
+    cd /getiplayer
+    tar -xzf /getiplayer/latest.tar.gz get_iplayer-$RELEASE --directory /getiplayer/ --strip-components=1
+    rm /getiplayer/latest.tar.gz
   fi
 fi

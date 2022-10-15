@@ -1,26 +1,42 @@
-FROM kolonuk/get_iplayer-docker-base
+# Set base image (host OS)
+FROM alpine:latest
 
-ADD start.sh /root/start.sh
-ADD update.sh /root/update.sh
+## INSTALL GETIPLAYER
 
-RUN chmod 755 /root/start.sh
-RUN chmod 755 /root/update.sh
+# Ensure dependencies
+RUN apk --update --no-cache add ffmpeg perl perl-mojolicious perl-lwp-protocol-https perl-xml-libxml jq logrotate su-exec tini wget libstdc++ bash grep openrc
 
-# Setup crontab
+# AtomicParsley pkg doesn't seem to exist for Alpine
+# Install from repo
+RUN wget -qnd `wget -qO - "https://api.github.com/repos/wez/atomicparsley/releases/latest" | jq -r .assets[].browser_download_url | grep Alpine` && \
+    unzip AtomicParsleyAlpine.zip && \
+    install -m 755 -t /usr/local/bin ./AtomicParsley && \
+    rm ./AtomicParsley ./AtomicParsleyAlpine.zip
+
+# Move to the place all our code is stored
+WORKDIR /getiplayer
+
+# Copy across all code files
+COPY start.sh .
+COPY update.sh .
+COPY watcher.sh .
+
+# Ensure we can run them
+RUN chmod 755 ./start.sh
+RUN chmod 755 ./update.sh
+RUN chmod 755 ./watcher.sh
+
+# Setup the crontab
 RUN echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /root/cron.tab && \
-    echo "@hourly /root/get_iplayer --refresh > /proc/1/fd/1 2>&1" >> /root/cron.tab && \
-    echo "@hourly /root/get_iplayer --pvr > /proc/1/fd/1 2>&1" >> /root/cron.tab && \
-    echo "@daily /root/update.sh > /proc/1/fd/1 2>&1" >> /root/cron.tab && \
+    echo "@hourly /getiplayer/get_iplayer --refresh > /proc/1/fd/1 2>&1" >> /root/cron.tab && \
+    echo "*/5 * * * * /getiplayer/watcher.sh > /proc/1/fd/1 2>&1" >> /root/cron.tab && \
+    echo "@daily /getiplayer/update.sh > /proc/1/fd/1 2>&1" >> /root/cron.tab && \
     crontab /root/cron.tab && \
     rm -f /root/cron.tab
 
 VOLUME /root/.get_iplayer
-VOLUME /root/output
+VOLUME /output
+VOLUME /input
 
-LABEL issues_get_iplayer="Comments/issues for get_iplayer: https://forums.squarepenguin.co.uk"
-LABEL issues_kolonuk/get_iplayer="Comments/issues for this Dockerfile: https://github.com/kolonuk/get_iplayer-docker/issues"
-LABEL maintainer="John Wood <john@kolon.co.uk>"
-
-EXPOSE 8181:8181
-
-ENTRYPOINT ["/bin/bash", "/root/start.sh"]
+# Execute our setup script which finishes off a few actions for us
+RUN /bin/bash /getiplayer/start.sh
